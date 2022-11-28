@@ -3,45 +3,68 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour {
-    [Header("Looking")]
-    private float axisY = 0f, axisX = 0f;
 
-     [Header("Movement")]
-    private Rigidbody rb;
-    private Transform orientation;
-    public float walkspeed = 5f, senstivity = 2f;
-    bool running = false;
-    
+    [Header("Movement")]
+    public CharacterController controller;
+    private float walkSpeed = 10f;
+    private float runSpeed = 20f;
+    public float moveSpeed;
+
+    [Header("Gravity")]
+    public float gravity = -9.81f;
+
+    Vector3 velocity;
+
+    public Transform groundCheck;
+    public float groundDistance = 0.3f;
+
+    public LayerMask groundMask;
+    private bool grounded;
+
+    [Header("Jump")]
+    public float jumpHeight = 2f;
+
+    [Header("Running")]
+    public bool running;
 
     void Start() {
-        Cursor.lockState = CursorLockMode.Locked;
-        rb = gameObject.GetComponent<Rigidbody>();
-        orientation = gameObject.GetComponent<Transform>();
-    }
 
+    }
     void Update() {
-        Look();
+        jump();
+        applyGravity();
+        movePlayer();
+    }
+    void jump(){
+        if (Input.GetButtonDown("Jump") && grounded){
+            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+        }
     }
 
-    void FixedUpdate() {
-        Movement();
+    void movePlayer(){
+        float x = Input.GetAxis("Horizontal");
+        float z = Input.GetAxis("Vertical");
+
+        Vector3 moveDirection = transform.right * x + transform.forward * z;
+        controller.Move(moveDirection * moveSpeed * Time.deltaTime);
+      
+        if(Input.GetKey(KeyCode.LeftShift) && grounded){
+            moveSpeed = runSpeed;
+            running = true;
+        } else if (grounded) {
+            moveSpeed = walkSpeed;
+            running = false;
+        } 
     }
 
-    void Look() {
-        axisY -= Input.GetAxisRaw("Mouse Y") * senstivity;
-        axisY = Mathf.Clamp(axisY, -90f, 90f);
+    void applyGravity() {
+        grounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
 
-        axisX += Input.GetAxisRaw("Mouse X") * senstivity;
+        if(grounded && velocity.y < 0) {
+            velocity.y = -2f;
+        }
 
-        Camera.main.transform.localRotation = Quaternion.Euler(axisY, axisX, 0);
-    }
-
-    void Movement() {
-        float xDirection = Input.GetAxis("Horizontal");
-        float zDirection = Input.GetAxis("Vertical");
-
-        Vector3 moveDirection = orientation.forward * zDirection + orientation.right * xDirection;
-
-        transform.position += moveDirection.normalized * walkspeed;
+        velocity.y += gravity * Time.deltaTime;
+        controller.Move(velocity * Time.deltaTime);
     }
 }
